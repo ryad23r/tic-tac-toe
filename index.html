@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>لعبة إكس أو</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>لعبة إكس أو</h1>
+
+  <div id="scoreboard">
+    <span>اللاعب X: <strong id="player-score">0</strong></span>
+    <span>الكمبيوتر O: <strong id="computer-score">0</strong></span>
+  </div>
+
+  <label for="difficulty">الصعوبة:</label>
+  <select id="difficulty">
+    <option value="easy">سهل</option>
+    <option value="hard" selected>صعب</option>
+  </select>
+
+  <div id="game-board"></div>
+
+  <p id="status"></p>
+  <button id="restart">إعادة اللعب</button>
+
+  <script>
+    const clickSound = new Audio("sounds/click.mp3");
+    const winSound = new Audio("sounds/win.mp3");
+    const drawSound = new Audio("sounds/draw.mp3");
+
+    let board = Array(9).fill("");
+    let currentPlayer = "X";
+    let gameActive = true;
+    let playerScore = 0;
+    let computerScore = 0;
+
+    const statusDisplay = document.getElementById("status");
+    const playerScoreEl = document.getElementById("player-score");
+    const computerScoreEl = document.getElementById("computer-score");
+    const difficultySelect = document.getElementById("difficulty");
+
+    const winConditions = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6]
+    ];
+
+    function createBoard() {
+      const gameBoard = document.getElementById("game-board");
+      gameBoard.innerHTML = "";
+      board.forEach((cell, index) => {
+        const cellElement = document.createElement("div");
+        cellElement.classList.add("cell");
+        cellElement.dataset.index = index;
+        cellElement.textContent = cell;
+        cellElement.addEventListener("click", handleClick);
+        gameBoard.appendChild(cellElement);
+      });
+      statusDisplay.textContent = "دور اللاعب X";
+    }
+
+    function handleClick(e) {
+      const index = e.target.dataset.index;
+      if (board[index] !== "" || !gameActive || currentPlayer !== "X") return;
+
+      clickSound.play();
+      board[index] = "X";
+      updateBoard();
+
+      if (checkWinner("X")) {
+        winSound.play();
+        playerScore++;
+        updateScores();
+        statusDisplay.textContent = "اللاعب X فاز!";
+        gameActive = false;
+        return;
+      }
+
+      if (isDraw()) {
+        drawSound.play();
+        statusDisplay.textContent = "تعادل!";
+        gameActive = false;
+        return;
+      }
+
+      currentPlayer = "O";
+      statusDisplay.textContent = "دور الكمبيوتر...";
+      setTimeout(computerMove, 500);
+    }
+
+    function computerMove() {
+      if (!gameActive) return;
+
+      const difficulty = difficultySelect.value;
+      let move;
+
+      if (difficulty === "easy") {
+        let empty = board.map((v, i) => v === "" ? i : null).filter(v => v !== null);
+        move = empty[Math.floor(Math.random() * empty.length)];
+      } else {
+        let bestScore = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (board[i] === "") {
+            board[i] = "O";
+            let score = minimax(board, 0, false);
+            board[i] = "";
+            if (score > bestScore) {
+              bestScore = score;
+              move = i;
+            }
+          }
+        }
+      }
+
+      board[move] = "O";
+      updateBoard();
+
+      if (checkWinner("O")) {
+        winSound.play();
+        computerScore++;
+        updateScores();
+        statusDisplay.textContent = "الكمبيوتر فاز!";
+        gameActive = false;
+        return;
+      }
+
+      if (isDraw()) {
+        drawSound.play();
+        statusDisplay.textContent = "تعادل!";
+        gameActive = false;
+        return;
+      }
+
+      currentPlayer = "X";
+      statusDisplay.textContent = "دور اللاعب X";
+    }
+
+    function minimax(newBoard, depth, isMax) {
+      if (checkWinner("O", newBoard)) return 10 - depth;
+      if (checkWinner("X", newBoard)) return depth - 10;
+      if (!newBoard.includes("")) return 0;
+
+      if (isMax) {
+        let best = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (newBoard[i] === "") {
+            newBoard[i] = "O";
+            best = Math.max(best, minimax(newBoard, depth + 1, false));
+            newBoard[i] = "";
+          }
+        }
+        return best;
+      } else {
+        let best = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (newBoard[i] === "") {
+            newBoard[i] = "X";
+            best = Math.min(best, minimax(newBoard, depth + 1, true));
+            newBoard[i] = "";
+          }
+        }
+        return best;
+      }
+    }
+
+    function checkWinner(player, state = board) {
+      return winConditions.some(line => line.every(i => state[i] === player));
+    }
+
+    function isDraw() {
+      return !board.includes("");
+    }
+
+    function updateBoard() {
+      document.querySelectorAll(".cell").forEach((cell, i) => {
+        cell.textContent = board[i];
+      });
+    }
+
+    function updateScores() {
+      playerScoreEl.textContent = playerScore;
+      computerScoreEl.textContent = computerScore;
+    }
+
+    document.getElementById("restart").addEventListener("click", () => {
+      board = Array(9).fill("");
+      currentPlayer = "X";
+      gameActive = true;
+      createBoard();
+    });
+
+    createBoard();
+  </script>
+</body>
+</html>
